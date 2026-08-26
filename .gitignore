@@ -1,0 +1,28 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Generated analysis outputs
+outputs/*
+!outputs/.gitkeep
+
+# Restricted human-tissue source data
+inputs/ecm_coverage/*.xlsx
+inputs/fraclac/normal_skin_boxcount/*.xlsx
+inputs/fraclac/wound_skin_boxcount/*.xlsx
+*.mrxs
+*.svs
+*.ndpi
+*.tif
+*.tiff
+*.png
+*.jpg
+*.jpeg

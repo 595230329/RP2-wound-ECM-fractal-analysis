@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Quantitative spatial ECM remodelling in human wound histology"
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Xuyang
+date-released: 2026-08-26
+license: MIT
+abstract: "Reproducible workflows for ROI-level ECM coverage, FracLac analysis and exploratory HWHI integration."
