@@ -97,6 +97,8 @@ def find_column_by_suffix(columns, required_suffix):
 
 
 def standardise_region(value):
+    if pd.isna(value):
+        return value
     return REGION_MAP.get(str(value).strip().lower(), str(value).strip())
 
 
@@ -108,15 +110,20 @@ def metric_from_filename(filename):
     return None
 
 
-coverage_files = sorted(glob.glob(os.path.join(INPUT_DIR, '* coverage *.xlsx')))
+# Match on the metric phrase anywhere in the name (any case), as inputs/README.md describes.
+coverage_files = sorted(glob.glob(os.path.join(INPUT_DIR, '*.xlsx')))
 coverage_files = [
     file_path for file_path in coverage_files
     if not os.path.basename(file_path).startswith('~$')
     and 'summary' not in os.path.basename(file_path).lower()
+    and metric_from_filename(os.path.basename(file_path)) is not None
 ]
 
 if len(coverage_files) != 15:
-    print(f'Warning: expected 15 coverage workbooks, found {len(coverage_files)}.')
+    raise ValueError(
+        f'Expected 15 coverage workbooks in {INPUT_DIR}, found {len(coverage_files)}: '
+        f'{[os.path.basename(f) for f in coverage_files]}'
+    )
 
 tile_data_by_metric = {metric: [] for metric in METRICS_INFO}
 
