@@ -212,7 +212,12 @@ master.to_csv(os.path.join(OUT_DIR, '0_HWHI_Integration_QC.csv'), index=False)
 
 unmatched = master[master['Integration_Status'] != 'Matched ECM and FracLac']
 if not unmatched.empty:
-    raise ValueError('ECM and FracLac records did not fully match. See 0_HWHI_Integration_QC.csv.')
+    raise ValueError(
+        'ECM and FracLac records did not fully match. See 0_HWHI_Integration_QC.csv.\n'
+        f'{unmatched[["Sample_ID", "Region", "Integration_Status"]].to_string(index=False)}\n'
+        'An "ECM only" row usually means its FracLac masks failed the R2 QC '
+        '(see the FracLac script output).'
+    )
 if len(master) != 22:
     raise ValueError(f'Expected 22 matched section-region observations, found {len(master)}.')
 
