@@ -17,7 +17,7 @@ import pandas as pd
 from matplotlib.gridspec import GridSpec
 from PIL import Image
 
-from config import CHECK_DIR, HE_MASK_DIR, OUT_DIR, PENTA_MASK_DIR, PIXEL_SIZE_UM
+from config import CHECK_DIRS, HE_MASK_DIR, OUT_DIR, PENTA_MASK_DIR, PIXEL_SIZE_UM
 from naming import parse_file_metadata
 
 Image.MAX_IMAGE_PIXELS = None
@@ -40,9 +40,13 @@ plt.rcParams.update({'font.family': 'Arial', 'font.size': 8,
                      'axes.linewidth': 0.8, 'savefig.facecolor': 'white'})
 
 
-def find_file(folder, mask_id, endings):
+def find_file(folders, mask_id, endings):
+    if isinstance(folders, str):
+        folders = [folders]
+    folder = '\n  '.join(folders)
     hits = []
-    for path in glob.glob(os.path.join(folder, '**', '*'), recursive=True):
+    paths = [p for f in folders for p in glob.glob(os.path.join(f, '**', '*'), recursive=True)]
+    for path in paths:
         name = os.path.basename(path)
         if not name.lower().endswith(endings):
             continue
@@ -131,10 +135,10 @@ def scatter_panel(ax, df, metric, axis_label, show_legend):
 # ----------------------------------------------------------------------------
 print('Finding files...')
 files = {
-    ('HE', 'normal', 'img'): find_file(CHECK_DIR, NORMAL_ID, ('_he.png',)),
-    ('HE', 'wound', 'img'): find_file(CHECK_DIR, WOUND_ID, ('_he.png',)),
-    ('Penta', 'normal', 'img'): find_file(CHECK_DIR, NORMAL_ID, ('_penta.png',)),
-    ('Penta', 'wound', 'img'): find_file(CHECK_DIR, WOUND_ID, ('_penta.png',)),
+    ('HE', 'normal', 'img'): find_file(CHECK_DIRS, NORMAL_ID, ('_he.png',)),
+    ('HE', 'wound', 'img'): find_file(CHECK_DIRS, WOUND_ID, ('_he.png',)),
+    ('Penta', 'normal', 'img'): find_file(CHECK_DIRS, NORMAL_ID, ('_penta.png',)),
+    ('Penta', 'wound', 'img'): find_file(CHECK_DIRS, WOUND_ID, ('_penta.png',)),
     ('HE', 'normal', 'mask'): find_file(HE_MASK_DIR, NORMAL_ID, ('.tif', '.tiff', '.png')),
     ('HE', 'wound', 'mask'): find_file(HE_MASK_DIR, WOUND_ID, ('.tif', '.tiff', '.png')),
     ('Penta', 'normal', 'mask'): find_file(PENTA_MASK_DIR, NORMAL_ID, ('.tif', '.tiff', '.png')),

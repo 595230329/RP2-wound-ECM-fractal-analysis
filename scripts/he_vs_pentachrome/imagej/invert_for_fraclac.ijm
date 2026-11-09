@@ -6,6 +6,7 @@ input = getDirectory("Folder with original masks");
 output = getDirectory("Empty folder for inverted copies");
 list = getFileList(input);
 setBatchMode(true);
+inverted = 0;
 for (i = 0; i < list.length; i++) {
     name = toLowerCase(list[i]);
     if (endsWith(name, ".tif") || endsWith(name, ".tiff")) {
@@ -13,7 +14,8 @@ for (i = 0; i < list.length; i++) {
         run("Invert");
         saveAs("Tiff", output + list[i]);
         close();
+        inverted++;
     }
 }
 setBatchMode(false);
-print("Inverted " + list.length + " files.");
+print("Inverted " + inverted + " of " + list.length + " files (TIFF only).");

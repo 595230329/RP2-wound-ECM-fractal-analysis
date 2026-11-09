@@ -620,7 +620,8 @@ if penta_box_ok and he_box_ok:
         paired['Low_FG_Flag_Any'] = (
             paired[['Foreground_Fraction_Penta', 'Foreground_Fraction_HE']].min(axis=1)
             < LOW_FOREGROUND_FRACTION_THRESHOLD)
-        paired['R2_QC_Both'] = (paired[['R2_Fit_Penta', 'R2_Fit_HE']].min(axis=1)
+        # skipna=False: a missing R2 on either stain fails the QC instead of being ignored.
+        paired['R2_QC_Both'] = (paired[['R2_Fit_Penta', 'R2_Fit_HE']].min(axis=1, skipna=False)
                                 >= R2_QC_THRESHOLD)
         metrics = [('Fractal_Dimension', 'fractal dimension'),
                    ('Lacunarity', 'lacunarity'),
