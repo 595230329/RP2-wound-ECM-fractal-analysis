@@ -15,7 +15,10 @@ HE_MASK_DIR = os.path.join(DATA_DIR, 'H&E')
 PENTA_BOX_DIRS = [os.path.join(DATA_DIR, 'NORMAL SKIN BOXCOUNT'),
                   os.path.join(DATA_DIR, 'WOUND SKIN BOXCOUNT')]
 HE_BOX_DIRS = [os.path.join(DATA_DIR, 'HE BOXCOUNT')]
-CHECK_DIR = os.path.join(DATA_DIR, 'check_aligned')   # *_HE.png / *_penta.png from QuPath
+# *_HE.png / *_penta.png from QuPath: export_masks_aligned.groovy writes check_aligned,
+# export_masks_aligned_penta.groovy writes check_aligned_penta.
+CHECK_DIRS = [os.path.join(DATA_DIR, 'check_aligned'),
+              os.path.join(DATA_DIR, 'check_aligned_penta')]
 
 OUT_DIR = os.path.join(REPO_DIR, 'outputs', 'he_vs_pentachrome')
 
