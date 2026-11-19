@@ -13,7 +13,6 @@ import qupath.lib.images.servers.LabeledImageServer
 import qupath.lib.regions.RegionRequest
 
 // ===================== Settings =====================
-def HE_KEYWORD        = 'H&E'                      // text found only in H&E image names
 def HE_CLASSIFIER     = 'HE_Collagen_v1'
 def PENTA_CLASSIFIER  = 'Pentachrome_Collagen_v1'  // yellow only = collagen
 def COLLAGEN_CLASS    = 'collagen'                 // class name in both classifiers
@@ -23,7 +22,7 @@ double OUT_PIXEL_SIZE = 0.2431                     // µm/px, both stains
 def imageData = getCurrentImageData()
 def server = imageData.getServer()
 def imageName = getProjectEntry().getImageName()
-def isHE = imageName.toUpperCase().contains(HE_KEYWORD.toUpperCase())
+def isHE = (imageName.toUpperCase() =~ /9M1[0-4]/).find()   // H&E sections 9M10-9M14, as in the aligned scripts
 def classifierName = isHE ? HE_CLASSIFIER : PENTA_CLASSIFIER
 println "${imageName} -> ${isHE ? 'H&E' : 'Pentachrome'} (${classifierName})"
 
