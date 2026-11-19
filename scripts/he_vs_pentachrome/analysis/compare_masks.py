@@ -60,6 +60,7 @@ TOLERANCE_RADII_UM = [2, 5, 10]   # tolerance for registration-tolerant overlap 
 ESTIMATE_RESIDUAL_SHIFT = True    # estimate residual translation between masks
 APPLY_SHIFT_CORRECTION = True     # correct small translations before scoring
 MAX_SHIFT_UM = 25                 # larger estimated shifts are treated as unreliable
+FG_POLARITY_TOLERANCE = 0.01     # max |FracLac FG - mask FG| before Part B flags a polarity error
 MIN_FG_FOR_SHIFT = 0.005          # skip shift estimation on very sparse masks
 N_CHANCE_SHIFTS = 20              # random shifts used for the chance-level Dice
 
@@ -616,6 +617,29 @@ if penta_box_ok and he_box_ok:
             unpaired_he = sorted(set(he_fl['Mask_ID']) - set(paired['Mask_ID']))
             for missing in unpaired_he:
                 print(f'  H&E FracLac result without pentachrome partner: {missing}')
+
+        # Polarity check: FracLac's foreground fraction must match the mask's
+        # collagen fraction from Part A. A mismatch means FracLac measured the
+        # background (inverted mask, or a TIFF that ImageJ reads with another LUT).
+        mask_fg = globals().get('pixel_df')
+        if mask_fg is not None and not mask_fg.empty:
+            check = paired[['Mask_ID', 'Foreground_Fraction_Penta', 'Foreground_Fraction_HE']].merge(
+                mask_fg[['Mask_ID', 'Penta_Foreground_Fraction', 'HE_Foreground_Fraction']],
+                on='Mask_ID', how='left')
+            n_bad = 0
+            for stain, fl_col, px_col in [('Penta', 'Foreground_Fraction_Penta', 'Penta_Foreground_Fraction'),
+                                          ('HE', 'Foreground_Fraction_HE', 'HE_Foreground_Fraction')]:
+                diff = (check[fl_col] - check[px_col]).abs()
+                paired[f'FG_Matches_Mask_{stain}'] = (diff <= FG_POLARITY_TOLERANCE).values
+                for _, row in check[diff > FG_POLARITY_TOLERANCE].iterrows():
+                    n_bad += 1
+                    print(f'  POLARITY ERROR {row["Mask_ID"]} ({stain}): FracLac foreground '
+                          f'{row[fl_col]:.3f} but mask collagen fraction {row[px_col]:.3f}')
+            if n_bad:
+                print(f'  {n_bad} FracLac result(s) do not match their masks. Do not use Part B '
+                      'until FracLac is rerun on correctly prepared masks.')
+            else:
+                print('  Polarity check passed: FracLac foreground matches every mask.')
 
         paired['Low_FG_Flag_Any'] = (
             paired[['Foreground_Fraction_Penta', 'Foreground_Fraction_HE']].min(axis=1)
