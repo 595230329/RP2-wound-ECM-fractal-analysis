@@ -12,9 +12,14 @@
  * Output: <project>/masks/Penta_aligned/<ROI name>_mask.tif   (8-bit, collagen = 255)
  *         <project>/masks/check_aligned_penta/<ROI name>_HE.png / _penta.png
  *
- * START_CORNER: which corner of the rotated ROI becomes the top-left corner.
- * Confirm it for each pentachrome image with the check images.
+ * Start corner: for each ROI, the corner whose first edge points most nearly along +x
+ * becomes the top-left corner, so the pentachrome mask keeps the orientation of the H&E
+ * ROI. START_OVERRIDE fixes the corner for an image instead (e.g. a section mounted
+ * rotated by 90 deg). assemble_masks.py checks the orientation of every image.
  * Sampling: nearest neighbour at output-pixel centres.
+ *
+ * Each saved ROI is also logged to <project>/masks/roi_angles.csv (appended; the
+ * last row per ROI and stain is used by assemble_masks.py).
  */
 import qupath.lib.images.servers.LabeledImageServer
 import qupath.lib.regions.RegionRequest
@@ -26,7 +31,7 @@ def PENTA_CLASSIFIER  = 'Pentachrome_Collagen_v1'  // yellow only = collagen
 def COLLAGEN_CLASS    = 'collagen'
 double OUT_PIXEL_SIZE = 0.2431                     // µm/px, same as other masks
 double ROI_SIZE_UM    = 500
-int START_CORNER      = 1
+def START_OVERRIDE    = [:]   // pentachrome code -> fixed start corner, e.g. ['9M09': 0]; empty = automatic
 // ====================================================
 
 // Nearest-neighbour resampling of a rotated square into an n x n grid.
@@ -52,7 +57,9 @@ def imageData = getCurrentImageData()
 def server = imageData.getServer()
 def imageName = getProjectEntry().getImageName()
 def isHE = (imageName.toUpperCase() =~ /9M1[0-4]/).find()
-println "${imageName} -> ${isHE ? 'H&E (check images only)' : 'Pentachrome'}"
+def codeMatch = (imageName.toUpperCase() =~ /9M0[5-9]/)
+def overrideCorner = codeMatch.find() ? START_OVERRIDE.get(codeMatch.group()) : null
+println "${imageName} -> ${isHE ? 'H&E (check images only)' : 'Pentachrome'}, start corner ${overrideCorner == null ? 'automatic' : overrideCorner}"
 
 // Wound ROIs only
 def rois = getAnnotationObjects().findAll {
@@ -108,15 +115,23 @@ for (r in rois) {
     }
     if (c.size() != 4) { println "  ${r.getName()}: ${c.size()} corners (expected 4) - skipped"; continue }
 
-    def p0 = c[START_CORNER % 4]
-    def p1 = c[(START_CORNER + 1) % 4]
-    def p3 = c[(START_CORNER + 3) % 4]
-    double exx = (p1.getX() - p0.getX()) / N, exy = (p1.getY() - p0.getY()) / N
-    double eyx = (p3.getX() - p0.getX()) / N, eyy = (p3.getY() - p0.getY()) / N
-    if (exx * eyy - exy * eyx < 0) {   // corner order reversed: swap axes to avoid a mirror image
-        double tx = exx, ty = exy
-        exx = eyx; exy = eyy; eyx = tx; eyy = ty
+    // Start corner: the corner whose first edge points most nearly along +x, so the output
+    // keeps the orientation of the reference ROI. START_OVERRIDE fixes it for an image instead.
+    int startCorner = 0
+    double exx = 0, exy = 0, eyx = 0, eyy = 0, bestAbs = Double.MAX_VALUE
+    for (int s = 0; s < 4; s++) {
+        if (overrideCorner != null && s != overrideCorner) continue
+        def q0 = c[s], q1 = c[(s + 1) % 4], q3 = c[(s + 3) % 4]
+        double ax_ = (q1.getX() - q0.getX()) / N, ay_ = (q1.getY() - q0.getY()) / N
+        double bx_ = (q3.getX() - q0.getX()) / N, by_ = (q3.getY() - q0.getY()) / N
+        if (ax_ * by_ - ay_ * bx_ < 0) {   // corner order reversed: swap axes to avoid a mirror image
+            double tx = ax_, ty = ay_
+            ax_ = bx_; ay_ = by_; bx_ = tx; by_ = ty
+        }
+        double a = Math.abs(Math.toDegrees(Math.atan2(ay_, ax_)))
+        if (a < bestAbs) { bestAbs = a; startCorner = s; exx = ax_; exy = ay_; eyx = bx_; eyy = by_ }
     }
+    def p0 = c[startCorner]
     double angle = Math.toDegrees(Math.atan2(exy, exx))
     double sideUm = Math.hypot(exx, exy) * N * fullPx
 
@@ -148,5 +163,10 @@ for (r in rois) {
     chk.setRGB(0, 0, N, N, rout, 0, N)
     ImageIO.write(chk, 'png', new File(buildFilePath(checkDir, r.getName() + '_penta.png')))
 
-    println String.format("  Saved: %s_mask.tif | angle = %.1f deg | side = %.0f um", r.getName(), angle, sideUm)
+    println String.format("  Saved: %s_mask.tif | angle = %.1f deg | side = %.0f um | start corner %d", r.getName(), angle, sideUm, startCorner)
+
+    // Angle log read by assemble_masks.py to decide which stain is the reference for each ROI
+    def angleLog = new File(buildFilePath(PROJECT_BASE_DIR, 'masks', 'roi_angles.csv'))
+    if (!angleLog.exists()) angleLog.text = 'Stain,Image,ROI,Angle_deg,Side_um\n'
+    angleLog << String.format('%s,"%s","%s",%.3f,%.1f%n', 'Penta', imageName, r.getName(), angle, sideUm)
 }
