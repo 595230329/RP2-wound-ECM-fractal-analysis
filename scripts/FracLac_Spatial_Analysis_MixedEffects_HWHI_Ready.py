@@ -100,9 +100,10 @@ def read_fraclac_workbook(path, is_normal):
     values = table.iloc[1]
     sample_id, region, mask_id = parse_file_metadata(path, is_normal)
 
-    # Prespecified FracLac fields, using zero-based Python column indices:
+    # Prespecified FracLac fields, by spreadsheet column number (1-based):
     # 6 = mean D; 11 = star D r2; 87 = lacunarity for image;
     # 118 = mean foreground pixels; 120 = total pixels.
+    # The indices passed below are the same columns, zero-based.
     mean_foreground_pixels = numeric_value(values, 117, source_file)
     total_pixels = numeric_value(values, 119, source_file)
 
@@ -136,6 +137,15 @@ print(f'Found {len(normal_files)} normal and {len(wound_files)} wound FracLac wo
 records = [read_fraclac_workbook(path, is_normal=True) for path in normal_files]
 records.extend(read_fraclac_workbook(path, is_normal=False) for path in wound_files)
 df_all = pd.DataFrame(records)
+duplicate_masks = df_all.loc[df_all['Mask_ID'].duplicated(keep=False), ['Mask_ID', 'Source_File']]
+if not duplicate_masks.empty:
+    raise ValueError(
+        'More than one FracLac workbook maps to the same mask:\n'
+        f'{duplicate_masks.sort_values("Mask_ID").to_string(index=False)}'
+    )
+if len(normal_files) != 12 or len(wound_files) != 18:
+    print(f'Warning: expected 12 normal and 18 wound FracLac workbooks, found '
+          f'{len(normal_files)} and {len(wound_files)}.')
 df_all['Region'] = pd.Categorical(df_all['Region'], categories=REGION_ORDER, ordered=True)
 df_all['Passes_R2_QC'] = df_all['R2_Fit'] >= R2_QC_THRESHOLD
 df_all['Low_Foreground_Fraction_Flag'] = (
@@ -148,6 +158,11 @@ print(df_all.groupby('Region', observed=True)['Mask_ID'].nunique())
 print(f'R2 QC threshold: {R2_QC_THRESHOLD}; masks passing: {df_all.Passes_R2_QC.sum()} / {len(df_all)}')
 print(f'Low-foreground QC flags (< {LOW_FOREGROUND_FRACTION_THRESHOLD:.0%}): '
       f'{df_all.Low_Foreground_Fraction_Flag.sum()}')
+
+failed_r2 = df_all.loc[~df_all['Passes_R2_QC'], ['Mask_ID', 'R2_Fit']]
+if not failed_r2.empty:
+    print('Masks excluded by the R2 QC (not used in models or HWHI):')
+    print(failed_r2.to_string(index=False))
 
 df_clean = df_all[df_all['Passes_R2_QC']].copy()
 df_clean.to_csv(os.path.join(OUT_DIR, '0_FracLac_QC_Passed_Data.csv'), index=False)
